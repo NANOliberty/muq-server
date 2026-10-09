@@ -75,6 +75,7 @@ scope: room / track / auth / realtime / sync / provider / infra 등 패키지명
 - 기획서에 없는 기능을 "있으면 좋을 것 같아서" 추가하지 않는다. 제안은 하되 구현은 승인 후.
 - `@Transactional`을 클래스 전체에 붙이지 않는다. 필요한 메서드에만.
 - Lombok은 `@Getter`, `@RequiredArgsConstructor`, `@Builder`까지만. `@Data`, `@Setter` 금지.
+  - 예외: `@NoArgsConstructor(access = AccessLevel.PROTECTED)`는 **JPA 엔티티 전용**으로 허용한다 (JPA가 요구하는 기본 생성자). 엔티티가 아닌 클래스나 다른 접근 수준으로는 쓰지 않는다.
 - 테스트 없는 Service 메서드를 "완료"라고 하지 않는다.
 - 외부 API 키, 토큰을 코드나 커밋에 넣지 않는다. 전부 환경변수.
 

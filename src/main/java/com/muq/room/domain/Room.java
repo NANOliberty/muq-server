@@ -11,7 +11,9 @@ import jakarta.persistence.Table;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
+import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 /**
  * 공유 큐가 열리는 방.
@@ -19,6 +21,8 @@ import lombok.Getter;
  * setter 가 없으므로 생성은 create(), 상태 변경은 의도가 드러나는 메서드로만 한다.
  */
 @Getter
+// 왜 PROTECTED: JPA 가 조회 결과로 객체를 만들 때 기본 생성자가 필요하다. 밖에서는 create() 만 쓰게 막는다.
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(name = "room")
 public class Room {
@@ -51,10 +55,6 @@ public class Room {
 
     @Column(nullable = false)
     private Instant createdAt;
-
-    // 왜 protected: JPA 가 조회 결과로 객체를 만들 때 기본 생성자가 필요하다. 밖에서는 create() 만 쓰게 막는다.
-    protected Room() {
-    }
 
     private Room(String code, RoomMode mode, PlayerProvider playerProvider, UUID hostId, Instant now, Duration ttl) {
         this.code = code;

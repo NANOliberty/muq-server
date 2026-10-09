@@ -13,13 +13,16 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
+import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 /**
  * 방에 들어온 참여자 한 명.
  * 참여자는 로그인 여부와 무관하게 participantId(UUID)로 식별한다. 호스트도 role 만 다른 같은 멤버다.
  */
 @Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(name = "room_member")
 public class RoomMember {
@@ -45,9 +48,6 @@ public class RoomMember {
 
     @Column(nullable = false)
     private Instant joinedAt;
-
-    protected RoomMember() {
-    }
 
     private RoomMember(Room room, UUID participantId, String nickname, MemberRole role, Instant now) {
         this.room = room;

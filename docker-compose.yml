@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: muq-postgres
+    environment:
+      POSTGRES_DB: muq
+      POSTGRES_USER: muq
+      POSTGRES_PASSWORD: muq
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U muq"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: muq-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Spotify / YouTube API 목 서버. 실제 키 없이 전체 흐름을 돌리기 위한 것.
+  # docker/wiremock/mappings/*.json 에 응답을 정의한다.
+  wiremock:
+    image: wiremock/wiremock:3.9.1
+    container_name: muq-wiremock
+    ports:
+      - "8089:8080"
+    volumes:
+      - ./docker/wiremock:/home/wiremock
+    command: ["--global-response-templating", "--verbose"]
+
+volumes:
+  pgdata:

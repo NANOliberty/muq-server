@@ -1,0 +1,24 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPathPattern": "/spotify/v1/search"
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": {
+      "tracks": {
+        "items": [
+          {
+            "id": "4uLU6hMCjMI75M1A2tKUQC",
+            "name": "Never Gonna Give You Up",
+            "duration_ms": 213573,
+            "artists": [{ "name": "Rick Astley" }],
+            "external_ids": { "isrc": "GBARL9300135" },
+            "album": { "images": [{ "url": "https://example.invalid/art.jpg" }] }
+          }
+        ]
+      }
+    }
+  }
+}

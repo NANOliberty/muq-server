@@ -1,0 +1,22 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# 비밀
+.env
+.env.*
+src/main/resources/application-local.yml
+
+# Claude Code 개인 설정 (팀 공유 설정은 .claude/settings.json 에)
+.claude/settings.local.json
+
+# 로그
+logs/
+*.log

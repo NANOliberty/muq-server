@@ -1,0 +1,63 @@
+# 모든 프로파일 공통 설정.
+# 값은 ${환경변수:로컬 기본값} 형태로 쓴다. 환경변수 이름은 .env.example 과 반드시 같게 유지한다.
+# 로컬 기본값은 docker-compose.yml 의 값이라 비밀이 아니다. 운영 값은 환경변수로만 넣는다.
+
+spring:
+  application:
+    name: muq-server
+  profiles:
+    # 왜: 프로파일을 지정하지 않으면 local 로 뜬다. 배포에서는 SPRING_PROFILES_ACTIVE=prod 로 덮는다.
+    default: local
+  config:
+    # 왜: 스프링은 .env 를 스스로 읽지 않는다. 이 한 줄로 `cp .env.example .env` 후 bootRun 이 그대로 동작한다.
+    #     optional 이라 .env 가 없어도(CI, 운영) 실패하지 않고, 실제 OS 환경변수가 .env 보다 우선한다.
+    import: optional:file:.env[.properties]
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/muq}
+    username: ${DB_USER:muq}
+    password: ${DB_PASSWORD:muq}
+
+  jpa:
+    # 왜: 기본값(true)이면 응답을 다 쓸 때까지 DB 커넥션을 쥔다. 지연 로딩은 Service 의 트랜잭션 안에서 끝낸다.
+    open-in-view: false
+    hibernate:
+      # 왜: 스키마를 바꾸는 주체는 Flyway 하나다. Hibernate 는 엔티티와 테이블이 맞는지 검증만 한다.
+      ddl-auto: validate
+
+  flyway:
+    enabled: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  mvc:
+    problemdetails:
+      # 왜: 스프링이 직접 던지는 예외(404, 405, 검증 실패 등)도 RFC 9457 Problem Details 로 응답한다.
+      enabled: true
+
+server:
+  port: 8080
+  # 왜: 종료 신호를 받으면 새 요청은 막고 처리 중인 요청은 끝낸 뒤 내려간다. 배포 중 요청 유실 방지.
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      # 왜: db·redis 각각의 UP/DOWN 은 보여 주되, 접속 주소 같은 상세(details)는 숨긴다.
+      show-components: always
+      show-details: never
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    com.muq: INFO

@@ -7,7 +7,8 @@ services:
       POSTGRES_USER: muq
       POSTGRES_PASSWORD: muq
     ports:
-      - "5432:5432"
+      # 호스트 포트만 5433. 로컬에 따로 설치한 PostgreSQL(기본 5432)과 겹치지 않게 한다.
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

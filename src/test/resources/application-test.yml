@@ -1,0 +1,10 @@
+# 테스트 전용 설정. 통합 테스트는 @ActiveProfiles("test") 로 이 프로파일을 켠다.
+# 왜 프로파일을 따로 두나: 지정하지 않으면 기본값인 local 로 떠서, 커밋되지 않는 개인 파일
+#   application-local.yml 이 테스트에 섞인다. 그러면 내 맥과 CI 의 결과가 달라질 수 있다.
+# DB·Redis 접속 정보는 여기 적지 않는다. Testcontainers 가 띄운 컨테이너의 주소를 스프링이 주입한다.
+
+logging:
+  level:
+    # 왜: 컨테이너 기동 로그가 길어서 테스트 실패 원인이 묻힌다.
+    org.testcontainers: WARN
+    tc: WARN

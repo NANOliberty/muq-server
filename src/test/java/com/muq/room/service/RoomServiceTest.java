@@ -10,13 +10,17 @@ import com.muq.auth.domain.GuestSession;
 import com.muq.auth.repository.GuestSessionRedisRepository;
 import com.muq.global.error.BusinessException;
 import com.muq.global.error.ErrorCode;
+import com.muq.global.redis.RedisKey;
 import com.muq.room.domain.MemberRole;
 import com.muq.room.domain.PlayerProvider;
 import com.muq.room.domain.Room;
 import com.muq.room.domain.RoomMember;
 import com.muq.room.domain.RoomMode;
+import com.muq.room.domain.RoomStatus;
 import com.muq.room.dto.CreateRoomRequest;
+import com.muq.room.dto.JoinRoomRequest;
 import com.muq.room.dto.RoomEntryResponse;
+import com.muq.room.dto.RoomResponse;
 import com.muq.room.repository.RoomMemberRepository;
 import com.muq.room.repository.RoomRepository;
 import com.muq.support.IntegrationTestSupport;
@@ -24,16 +28,20 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.redisson.api.RedissonClient;
+import org.redisson.client.codec.StringCodec;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /**
- * 방 생성의 규칙을 실제 PostgreSQL·Redis 위에서 검증한다.
+ * 방 생성·조회·입장의 규칙을 실제 PostgreSQL·Redis 위에서 검증한다.
  * 코드 생성기와 시계만 목으로 바꾼다. 코드 충돌을 원하는 대로 일으키고 만료 시각을 고정하기 위해서다.
  * 유니크 제약, 트랜잭션 롤백, 세션 저장은 진짜로 일어나야 의미가 있으므로 바꾸지 않는다.
  */
@@ -53,6 +61,9 @@ class RoomServiceTest extends IntegrationTestSupport {
 
     @Autowired
     private GuestSessionRedisRepository guestSessionRedisRepository;
+
+    @Autowired
+    private RedissonClient redissonClient;
 
     @MockitoBean
     private RoomCodeGenerator roomCodeGenerator;
@@ -133,12 +144,94 @@ class RoomServiceTest extends IntegrationTestSupport {
         assertThat(roomRepository.count()).isZero();
     }
 
+    @Test
+    @DisplayName("열려 있는 방은 소문자 코드로도 조회된다")
+    void getIgnoresCase() {
+        saveExistingRoom("AAAAAA");
+
+        RoomResponse response = roomService.get("aaaaaa");
+
+        assertThat(response.code()).isEqualTo("AAAAAA");
+        assertThat(response.expiresAt()).isEqualTo(NOW.plus(TTL));
+    }
+
+    @Test
+    @DisplayName("없는 코드로 조회하거나 입장하면 ROOM_NOT_FOUND다")
+    void unknownRoom() {
+        assertBusinessError(() -> roomService.get("ZZZZZZ"), ErrorCode.ROOM_NOT_FOUND);
+        assertBusinessError(() -> roomService.joinAsGuest("ZZZZZZ", new JoinRoomRequest("민수")),
+                ErrorCode.ROOM_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("만료 시각이 된 방은 조회도 입장도 ROOM_CLOSED이고 멤버가 생기지 않는다")
+    void expiredRoom() {
+        // 6시간 전에 만든 방이라 만료 시각이 정확히 지금(NOW)이다.
+        saveRoomCreatedAt("AAAAAA", NOW.minus(TTL));
+
+        assertBusinessError(() -> roomService.get("AAAAAA"), ErrorCode.ROOM_CLOSED);
+        assertBusinessError(() -> roomService.joinAsGuest("AAAAAA", new JoinRoomRequest("민수")),
+                ErrorCode.ROOM_CLOSED);
+        assertThat(roomMemberRepository.count()).isZero();
+    }
+
+    @Test
+    @DisplayName("상태가 CLOSED인 방은 만료 전이라도 ROOM_CLOSED다")
+    void closedRoom() {
+        Room room = Room.create("AAAAAA", RoomMode.SPEAKER, PlayerProvider.YOUTUBE, UUID.randomUUID(), NOW, TTL);
+        // 방을 닫는 기능이 생기기 전이라 상태를 직접 바꿔 저장한다 (RoomTest 와 같은 이유).
+        ReflectionTestUtils.setField(room, "status", RoomStatus.CLOSED);
+        roomRepository.saveAndFlush(room);
+
+        assertBusinessError(() -> roomService.get("AAAAAA"), ErrorCode.ROOM_CLOSED);
+    }
+
+    @Test
+    @DisplayName("게스트로 입장하면 GUEST 멤버와 그 방의 세션이 저장된다")
+    void joinAsGuest() {
+        saveExistingRoom("AAAAAA");
+
+        RoomEntryResponse response = roomService.joinAsGuest("aaaaaa", new JoinRoomRequest("민수"));
+
+        assertThat(response.session().role()).isEqualTo(MemberRole.GUEST);
+        RoomMember guest = roomMemberRepository.findAll().getFirst();
+        assertThat(guest.getRole()).isEqualTo(MemberRole.GUEST);
+        assertThat(guest.getParticipantId()).isEqualTo(response.session().participantId());
+        assertThat(guestSessionRedisRepository.findByToken(response.session().token()))
+                .contains(new GuestSession(guest.getParticipantId(), "민수", "AAAAAA"));
+    }
+
+    @Test
+    @DisplayName("게스트 세션의 TTL은 6시간이 아니라 방의 남은 수명이다")
+    void guestSessionTtlFollowsRoom() {
+        // 4시간 전에 만든 방이라 남은 수명은 2시간이다.
+        saveRoomCreatedAt("AAAAAA", NOW.minus(Duration.ofHours(4)));
+
+        RoomEntryResponse response = roomService.joinAsGuest("AAAAAA", new JoinRoomRequest("민수"));
+
+        String key = RedisKey.guestSession(response.session().token());
+        long remainMs = redissonClient.getMap(key, StringCodec.INSTANCE).remainTimeToLive();
+        assertThat(remainMs).isLessThanOrEqualTo(Duration.ofHours(2).toMillis());
+        assertThat(remainMs).isGreaterThan(Duration.ofMinutes(119).toMillis());
+    }
+
+    private void assertBusinessError(ThrowingCallable call, ErrorCode expected) {
+        assertThatThrownBy(call)
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(expected);
+    }
+
     private CreateRoomRequest request(String nickname) {
         return new CreateRoomRequest(nickname, RoomMode.SPEAKER, PlayerProvider.YOUTUBE);
     }
 
     private void saveExistingRoom(String code) {
+        saveRoomCreatedAt(code, NOW);
+    }
+
+    private void saveRoomCreatedAt(String code, Instant createdAt) {
         roomRepository.saveAndFlush(
-                Room.create(code, RoomMode.SPEAKER, PlayerProvider.YOUTUBE, UUID.randomUUID(), NOW, TTL));
+                Room.create(code, RoomMode.SPEAKER, PlayerProvider.YOUTUBE, UUID.randomUUID(), createdAt, TTL));
     }
 }

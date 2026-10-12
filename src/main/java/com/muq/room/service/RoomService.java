@@ -8,6 +8,7 @@ import com.muq.room.domain.MemberRole;
 import com.muq.room.domain.Room;
 import com.muq.room.domain.RoomMember;
 import com.muq.room.dto.CreateRoomRequest;
+import com.muq.room.dto.JoinRoomRequest;
 import com.muq.room.dto.RoomEntryResponse;
 import com.muq.room.dto.RoomResponse;
 import com.muq.room.dto.SessionResponse;
@@ -51,6 +52,15 @@ public class RoomService {
         Room room = saveWithUniqueCode(request, hostId);
         String token = guestSessionService.issue(hostId, request.nickname(), room.getCode(), roomProperties.ttl());
         return toResponse(room, request.nickname(), token);
+    }
+
+    // 본문은 도메인·저장소 레이어(isOpen, findByCode)를 만든 뒤 채운다.
+    public RoomResponse get(String code) {
+        throw new UnsupportedOperationException("방 조회 본문은 아직 구현 전이다");
+    }
+
+    public RoomEntryResponse joinAsGuest(String code, JoinRoomRequest request) {
+        throw new UnsupportedOperationException("게스트 입장 본문은 아직 구현 전이다");
     }
 
     private Room saveWithUniqueCode(CreateRoomRequest request, UUID hostId) {

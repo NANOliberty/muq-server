@@ -30,6 +30,7 @@
 - 같은 곡(Track ID)은 큐에 한 번만. 이미 있으면 "추가"를 "투표"로 처리.
 - 방은 마지막 활동 후 6시간 뒤 만료. 코드는 6자리 영숫자.
 - 게스트는 추가·투표·리액션 가능. 따라 듣기·플레이어 연결은 로그인 필요.
+- 방 안의 사람은 로그인 여부와 무관하게 **참여자 ID(UUID)** 로 식별한다. M1에서는 호스트도 닉네임만으로 방을 만들고 익명 세션 토큰을 받는다 (ADR 0004).
 - 따라 듣기 기본은 친구 공개. 리슨 링크는 24h TTL, 취소 가능, 전체 공개는 옵션(기본 꺼짐).
 - 매칭 실패 시 후보 3개 제시 → 선택 결과는 MANUAL로 저장해 전체 사용자에 적용.
 
@@ -51,7 +52,7 @@
 
 ## 6. 데이터
 
-**PostgreSQL**: User, ProviderAccount(토큰 AES-256 암호화), Friendship, Track(서비스 내부 곡 ID, isrc nullable), TrackMapping(provider, providerTrackId, confidence, source=ISRC/SEARCH/MANUAL), Room(code, mode, hostId, playerProvider, status, expiresAt), RoomMember, PlayHistory.
+**PostgreSQL**: User, ProviderAccount(토큰 AES-256 암호화), Friendship, Track(서비스 내부 곡 ID, isrc nullable), TrackMapping(provider, providerTrackId, confidence, source=ISRC/SEARCH/MANUAL), Room(code, mode, hostId=호스트의 참여자 ID, playerProvider, status, expiresAt), RoomMember(participantId, nickname, role=HOST/GUEST), PlayHistory.
 
 **Redis**
 
@@ -62,7 +63,7 @@
 | room:{code}:now | HASH(trackId, positionMs, serverTs, state) | 재생 상태 |
 | room:{code}:lock | STRING + TTL | 큐 변경 분산락 |
 | room:{code}:reactions:{trackId} | HASH(emoji→count) | 리액션 |
-| guest:{token} | HASH + TTL | 게스트 세션 |
+| guest:{token} | HASH(participantId, nickname, roomCode) + TTL 6h | 게스트 세션 (호스트 포함) |
 | user:{id}:now | HASH + TTL 30s | 현재 듣는 곡 |
 | listen-link:{token} | STRING(userId) + TTL 24h | 리슨 링크 |
 | match:{provider}:{providerTrackId} | STRING(trackId) + TTL 7d | 매칭 캐시 |

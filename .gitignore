@@ -20,3 +20,7 @@ src/main/resources/application-local.yml
 # 로그
 logs/
 *.log
+
+# 다른 AI 도구 생성물
+.agents/
+AGENTS.md

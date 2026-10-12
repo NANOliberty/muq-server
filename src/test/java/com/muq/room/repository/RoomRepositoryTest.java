@@ -86,6 +86,37 @@ class RoomRepositoryTest extends IntegrationTestSupport {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
+    @Test
+    @DisplayName("코드로 방을 찾을 수 있고, 없는 코드는 비어 있다")
+    void findByCode() {
+        Room saved = roomRepository.saveAndFlush(newRoom("EEEEEE"));
+
+        assertThat(roomRepository.findByCode("EEEEEE"))
+                .map(Room::getId)
+                .contains(saved.getId());
+        assertThat(roomRepository.findByCode("ZZZZZZ")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("코드 조회는 대소문자를 구분한다 (대문자로 맞추는 것은 서비스의 일이다)")
+    void findByCodeIsCaseSensitive() {
+        roomRepository.saveAndFlush(newRoom("FFFFFF"));
+
+        assertThat(roomRepository.findByCode("ffffff")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("게스트 멤버를 저장하면 GUEST 역할로 조회된다")
+    void saveGuestMember() {
+        Room room = roomRepository.saveAndFlush(newRoom("GGGGGG"));
+
+        RoomMember saved = roomMemberRepository.saveAndFlush(
+                RoomMember.guest(room, UUID.randomUUID(), "민수", NOW));
+
+        RoomMember found = roomMemberRepository.findById(saved.getId()).orElseThrow();
+        assertThat(found.getRole()).isEqualTo(MemberRole.GUEST);
+    }
+
     private Room newRoom(String code) {
         return Room.create(code, RoomMode.SPEAKER, PlayerProvider.YOUTUBE, UUID.randomUUID(), NOW, TTL);
     }

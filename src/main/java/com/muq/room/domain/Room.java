@@ -74,4 +74,15 @@ public class Room {
             String code, RoomMode mode, PlayerProvider playerProvider, UUID hostId, Instant now, Duration ttl) {
         return new Room(code, mode, playerProvider, hostId, now, ttl);
     }
+
+    // 왜 status 만 보지 않나: 만료 시각이 지나도 status 를 바꿔 주는 배치가 없다. 시각을 직접 비교해야 항상 정확하다.
+    //   만료 시각 정각은 이미 끝난 것으로 본다.
+    public boolean isOpen(Instant now) {
+        return status == RoomStatus.ACTIVE && now.isBefore(expiresAt);
+    }
+
+    /** 방이 끝날 때까지 남은 시간. 이 방에 속한 세션의 TTL 로 쓴다. */
+    public Duration remainingLifetime(Instant now) {
+        return Duration.between(now, expiresAt);
+    }
 }

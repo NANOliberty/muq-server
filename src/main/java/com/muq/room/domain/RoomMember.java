@@ -60,4 +60,8 @@ public class RoomMember {
     public static RoomMember host(Room room, UUID participantId, String nickname, Instant now) {
         return new RoomMember(room, participantId, nickname, MemberRole.HOST, now);
     }
+
+    public static RoomMember guest(Room room, UUID participantId, String nickname, Instant now) {
+        return new RoomMember(room, participantId, nickname, MemberRole.GUEST, now);
+    }
 }

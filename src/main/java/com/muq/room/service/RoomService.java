@@ -16,6 +16,7 @@ import com.muq.room.repository.RoomMemberRepository;
 import com.muq.room.repository.RoomRepository;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.exception.ConstraintViolationException;
@@ -28,6 +29,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * 방의 생성과 수명을 다룬다.
  * 방 생성은 "겹치지 않는 코드로 방과 호스트를 저장(PostgreSQL)하고, 호스트의 세션을 발급(Redis)한다"까지다.
+ * 조회와 입장은 열려 있는 방(ACTIVE 이고 만료 전)에만 허용한다.
  */
 @Service
 @RequiredArgsConstructor
@@ -51,16 +53,37 @@ public class RoomService {
         UUID hostId = UUID.randomUUID();
         Room room = saveWithUniqueCode(request, hostId);
         String token = guestSessionService.issue(hostId, request.nickname(), room.getCode(), roomProperties.ttl());
-        return toResponse(room, request.nickname(), token);
+        return toEntry(room, token, hostId, request.nickname(), MemberRole.HOST);
     }
 
-    // 본문은 도메인·저장소 레이어(isOpen, findByCode)를 만든 뒤 채운다.
     public RoomResponse get(String code) {
-        throw new UnsupportedOperationException("방 조회 본문은 아직 구현 전이다");
+        Room room = findOpenRoom(code, clock.instant());
+        return RoomResponse.from(room);
     }
 
+    // 왜 @Transactional 이 없나: DB 쓰기가 멤버 INSERT 하나뿐이라 저장소의 트랜잭션으로 충분하다.
+    //   순서는 방 생성과 같다. 멤버를 DB 에 남긴 뒤 세션을 발급한다.
+    // 왜 TTL 이 remainingLifetime 인가: 6시간을 새로 주면 세션이 방보다 오래 산다. 방이 끝나는 시각에 함께 끝나게 한다.
     public RoomEntryResponse joinAsGuest(String code, JoinRoomRequest request) {
-        throw new UnsupportedOperationException("게스트 입장 본문은 아직 구현 전이다");
+        Instant now = clock.instant();
+        Room room = findOpenRoom(code, now);
+        UUID participantId = UUID.randomUUID();
+        roomMemberRepository.save(RoomMember.guest(room, participantId, request.nickname(), now));
+        String token = guestSessionService.issue(
+                participantId, request.nickname(), room.getCode(), room.remainingLifetime(now));
+        return toEntry(room, token, participantId, request.nickname(), MemberRole.GUEST);
+    }
+
+    // 왜 404 와 410 을 나누나: "코드를 잘못 입력했다"와 "방이 이미 끝났다"는 사용자에게 다른 안내가 필요하다.
+    private Room findOpenRoom(String code, Instant now) {
+        // 왜 대문자로 바꾸나: 코드는 사람이 손으로 입력한다. 저장된 코드는 항상 대문자라서 여기서 맞춘다.
+        String normalizedCode = code.toUpperCase(Locale.ROOT);
+        Room room = roomRepository.findByCode(normalizedCode)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ROOM_NOT_FOUND));
+        if (!room.isOpen(now)) {
+            throw new BusinessException(ErrorCode.ROOM_CLOSED);
+        }
+        return room;
     }
 
     private Room saveWithUniqueCode(CreateRoomRequest request, UUID hostId) {
@@ -95,8 +118,9 @@ public class RoomService {
                 && Room.CODE_UNIQUE_CONSTRAINT.equals(violation.getConstraintName());
     }
 
-    private RoomEntryResponse toResponse(Room room, String nickname, String token) {
-        SessionResponse session = new SessionResponse(token, room.getHostId(), nickname, MemberRole.HOST);
+    private RoomEntryResponse toEntry(
+            Room room, String token, UUID participantId, String nickname, MemberRole role) {
+        SessionResponse session = new SessionResponse(token, participantId, nickname, role);
         return new RoomEntryResponse(RoomResponse.from(room), session);
     }
 }

@@ -13,7 +13,9 @@ import com.muq.room.domain.PlayerProvider;
 import com.muq.room.domain.RoomMode;
 import com.muq.room.domain.RoomStatus;
 import com.muq.room.dto.CreateRoomRequest;
-import com.muq.room.dto.CreateRoomResponse;
+import com.muq.room.dto.RoomEntryResponse;
+import com.muq.room.dto.RoomResponse;
+import com.muq.room.dto.SessionResponse;
 import com.muq.room.service.RoomService;
 import java.time.Instant;
 import java.util.UUID;
@@ -91,12 +93,12 @@ class RoomControllerTest {
                 .content(json));
     }
 
-    private CreateRoomResponse sampleResponse() {
-        CreateRoomResponse.RoomInfo room = new CreateRoomResponse.RoomInfo(
+    private RoomEntryResponse sampleResponse() {
+        RoomResponse room = new RoomResponse(
                 "K7M2QX", RoomMode.SPEAKER, PlayerProvider.YOUTUBE, RoomStatus.ACTIVE,
                 Instant.parse("2026-10-10T09:00:00Z"));
-        CreateRoomResponse.SessionInfo session = new CreateRoomResponse.SessionInfo(
+        SessionResponse session = new SessionResponse(
                 "token-abc", UUID.randomUUID(), "나노", MemberRole.HOST);
-        return new CreateRoomResponse(room, session);
+        return new RoomEntryResponse(room, session);
     }
 }

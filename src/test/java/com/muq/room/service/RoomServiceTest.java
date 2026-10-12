@@ -16,7 +16,7 @@ import com.muq.room.domain.Room;
 import com.muq.room.domain.RoomMember;
 import com.muq.room.domain.RoomMode;
 import com.muq.room.dto.CreateRoomRequest;
-import com.muq.room.dto.CreateRoomResponse;
+import com.muq.room.dto.RoomEntryResponse;
 import com.muq.room.repository.RoomMemberRepository;
 import com.muq.room.repository.RoomRepository;
 import com.muq.support.IntegrationTestSupport;
@@ -76,7 +76,7 @@ class RoomServiceTest extends IntegrationTestSupport {
     void create() {
         given(roomCodeGenerator.generate()).willReturn("AAAAAA");
 
-        CreateRoomResponse response = roomService.create(request("나노"));
+        RoomEntryResponse response = roomService.create(request("나노"));
 
         Room room = roomRepository.findAll().getFirst();
         assertThat(room.getCode()).isEqualTo("AAAAAA");
@@ -94,7 +94,7 @@ class RoomServiceTest extends IntegrationTestSupport {
         saveExistingRoom("AAAAAA");
         given(roomCodeGenerator.generate()).willReturn("AAAAAA", "AAAAAA", "BBBBBB");
 
-        CreateRoomResponse response = roomService.create(request("나노"));
+        RoomEntryResponse response = roomService.create(request("나노"));
 
         assertThat(response.room().code()).isEqualTo("BBBBBB");
         verify(roomCodeGenerator, times(3)).generate();

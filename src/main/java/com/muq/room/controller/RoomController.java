@@ -1,7 +1,7 @@
 package com.muq.room.controller;
 
 import com.muq.room.dto.CreateRoomRequest;
-import com.muq.room.dto.CreateRoomResponse;
+import com.muq.room.dto.RoomEntryResponse;
 import com.muq.room.service.RoomService;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -25,8 +25,8 @@ public class RoomController {
 
     // 왜 201 + Location: 새 리소스가 생겼다는 것과 그 주소를 HTTP 표준대로 알려 준다.
     @PostMapping
-    public ResponseEntity<CreateRoomResponse> create(@Valid @RequestBody CreateRoomRequest request) {
-        CreateRoomResponse response = roomService.create(request);
+    public ResponseEntity<RoomEntryResponse> create(@Valid @RequestBody CreateRoomRequest request) {
+        RoomEntryResponse response = roomService.create(request);
         URI location = URI.create("/api/v1/rooms/" + response.room().code());
         return ResponseEntity.created(location).body(response);
     }

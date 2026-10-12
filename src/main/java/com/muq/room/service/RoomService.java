@@ -8,7 +8,9 @@ import com.muq.room.domain.MemberRole;
 import com.muq.room.domain.Room;
 import com.muq.room.domain.RoomMember;
 import com.muq.room.dto.CreateRoomRequest;
-import com.muq.room.dto.CreateRoomResponse;
+import com.muq.room.dto.RoomEntryResponse;
+import com.muq.room.dto.RoomResponse;
+import com.muq.room.dto.SessionResponse;
 import com.muq.room.repository.RoomMemberRepository;
 import com.muq.room.repository.RoomRepository;
 import java.time.Clock;
@@ -44,7 +46,7 @@ public class RoomService {
     //   다시 저장할 수 없다. 그래서 시도 한 번이 트랜잭션 하나가 되도록 saveWithUniqueCode 안에서 경계를 직접 긋는다.
     // 왜 DB 다음에 Redis 인가: 세션에는 확정된 방 코드가 들어가야 한다. 세션 발급이 실패하면 500 으로 끝나고,
     //   들어갈 수 없는 방은 만료 시각이 지나면 정리 대상이 된다. 두 저장소를 하나의 트랜잭션으로 묶지 않는다.
-    public CreateRoomResponse create(CreateRoomRequest request) {
+    public RoomEntryResponse create(CreateRoomRequest request) {
         UUID hostId = UUID.randomUUID();
         Room room = saveWithUniqueCode(request, hostId);
         String token = guestSessionService.issue(hostId, request.nickname(), room.getCode(), roomProperties.ttl());
@@ -83,11 +85,8 @@ public class RoomService {
                 && Room.CODE_UNIQUE_CONSTRAINT.equals(violation.getConstraintName());
     }
 
-    private CreateRoomResponse toResponse(Room room, String nickname, String token) {
-        CreateRoomResponse.RoomInfo roomInfo = new CreateRoomResponse.RoomInfo(
-                room.getCode(), room.getMode(), room.getPlayerProvider(), room.getStatus(), room.getExpiresAt());
-        CreateRoomResponse.SessionInfo sessionInfo = new CreateRoomResponse.SessionInfo(
-                token, room.getHostId(), nickname, MemberRole.HOST);
-        return new CreateRoomResponse(roomInfo, sessionInfo);
+    private RoomEntryResponse toResponse(Room room, String nickname, String token) {
+        SessionResponse session = new SessionResponse(token, room.getHostId(), nickname, MemberRole.HOST);
+        return new RoomEntryResponse(RoomResponse.from(room), session);
     }
 }

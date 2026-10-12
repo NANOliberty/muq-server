@@ -27,6 +27,9 @@ import lombok.NoArgsConstructor;
 @Table(name = "room")
 public class Room {
 
+    /** code 유니크 제약의 이름. V1__create_room.sql 과 같아야 한다. 코드 충돌을 다른 제약 위반과 구분하는 데 쓴다. */
+    public static final String CODE_UNIQUE_CONSTRAINT = "uk_room_code";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

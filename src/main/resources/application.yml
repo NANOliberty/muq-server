@@ -58,6 +58,13 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
+muq:
+  room:
+    # 방의 수명. 게스트 세션의 TTL 도 이 값을 따른다.
+    ttl: 6h
+    # 방 코드가 기존 방과 겹쳤을 때 새 코드로 다시 시도하는 최대 횟수.
+    code-max-attempts: 5
+
 logging:
   level:
     com.muq: INFO

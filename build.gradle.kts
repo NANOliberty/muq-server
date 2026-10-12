@@ -45,6 +45,9 @@ dependencies {
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
 
+    // 왜: @ConfigurationProperties 클래스에서 메타데이터를 만들어 IDE 가 application.yml 의 muq.* 를 자동완성·검증하게 한다.
+    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
+
     // --- 테스트 ---
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     // 왜: @ServiceConnection 으로 컨테이너 접속 정보를 스프링 설정에 자동 주입한다.

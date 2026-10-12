@@ -14,7 +14,10 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
 
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "요청 값이 올바르지 않습니다."),
-    INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
+    INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다."),
+
+    // 왜 503: 요청이 잘못된 것이 아니라 서버가 지금 코드를 못 만든 것이다. 같은 요청을 다시 보내면 성공할 수 있다.
+    ROOM_CODE_EXHAUSTED(HttpStatus.SERVICE_UNAVAILABLE, "방 코드를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.");
 
     private final HttpStatus status;
     private final String message;

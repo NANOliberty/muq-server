@@ -2,6 +2,7 @@ package com.muq;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 
 /**
  * 뮤큐 서버의 시작점.
@@ -9,6 +10,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * 모든 도메인 패키지(room, track, ...)는 반드시 이 아래에 둔다.
  */
 @SpringBootApplication
+// 왜: @ConfigurationProperties 가 붙은 클래스(RoomProperties 등)를 찾아 빈으로 등록한다.
+@ConfigurationPropertiesScan
 public class MuqApplication {
 
     public static void main(String[] args) {

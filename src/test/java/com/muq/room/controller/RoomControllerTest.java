@@ -10,6 +10,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.muq.auth.domain.GuestSession;
+import com.muq.auth.repository.GuestSessionRedisRepository;
+import com.muq.auth.security.GuestTokenAuthenticationProvider;
 import com.muq.global.error.BusinessException;
 import com.muq.global.error.ErrorCode;
 import com.muq.global.security.ProblemDetailSecurityErrorHandler;
@@ -25,6 +28,7 @@ import com.muq.room.dto.RoomResponse;
 import com.muq.room.dto.SessionResponse;
 import com.muq.room.service.RoomService;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -44,7 +48,7 @@ import org.springframework.test.web.servlet.ResultActions;
 @WebMvcTest(RoomController.class)
 // 왜: @WebMvcTest 는 우리 SecurityConfig 를 읽지 않고 Boot 기본 보안(전부 잠금, CSRF 켜짐)으로 뜬다.
 //   방 API 는 "토큰 없이 부를 수 있다"는 것도 계약이므로, 실제 규칙을 올려 함께 검증한다.
-@Import({SecurityConfig.class, ProblemDetailSecurityErrorHandler.class})
+@Import({SecurityConfig.class, ProblemDetailSecurityErrorHandler.class, GuestTokenAuthenticationProvider.class})
 @ActiveProfiles("test")
 class RoomControllerTest {
 
@@ -53,6 +57,10 @@ class RoomControllerTest {
 
     @MockitoBean
     private RoomService roomService;
+
+    // 왜: 인증 Provider 가 세션을 찾는 저장소다. 웹 계층 테스트라 Redis 대신 목으로 둔다.
+    @MockitoBean
+    private GuestSessionRedisRepository guestSessionRedisRepository;
 
     @Test
     @DisplayName("방을 만들면 201과 Location 헤더, 방 코드와 호스트 세션을 응답한다")
@@ -164,6 +172,43 @@ class RoomControllerTest {
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
 
         verifyNoInteractions(roomService);
+    }
+
+    @Test
+    @DisplayName("보호된 경로에 유효한 토큰으로 오면 인증을 통과한다 (아직 그 경로의 API가 없어 404)")
+    void protectedPathWithValidToken() throws Exception {
+        given(guestSessionRedisRepository.findByToken("valid-token"))
+                .willReturn(Optional.of(new GuestSession(UUID.randomUUID(), "민수", "K7M2QX")));
+
+        mockMvc.perform(get("/api/v1/rooms/{code}/queue", "K7M2QX")
+                        .header("Authorization", "Bearer valid-token"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("보호된 경로에 Redis에 없는 토큰으로 오면 401이고 invalid_token을 알린다")
+    void protectedPathWithUnknownToken() throws Exception {
+        given(guestSessionRedisRepository.findByToken("expired-token")).willReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/v1/rooms/{code}/queue", "K7M2QX")
+                        .header("Authorization", "Bearer expired-token"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().string("WWW-Authenticate", "Bearer error=\"invalid_token\""))
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+    }
+
+    @Test
+    @DisplayName("공개 경로는 만료된 토큰을 들고 와도 헤더를 보지 않고 그대로 처리한다")
+    void publicPathIgnoresStaleToken() throws Exception {
+        given(roomService.create(any(CreateRoomRequest.class))).willReturn(sampleEntry(MemberRole.HOST));
+
+        mockMvc.perform(post("/api/v1/rooms")
+                        .header("Authorization", "Bearer expired-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nickname\": \"나노\", \"mode\": \"SPEAKER\", \"playerProvider\": \"YOUTUBE\"}"))
+                .andExpect(status().isCreated());
+
+        verifyNoInteractions(guestSessionRedisRepository);
     }
 
     private ResultActions postRoom(String json) throws Exception {

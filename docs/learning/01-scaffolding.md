@@ -89,7 +89,7 @@ public ProblemDetail handleUnexpected(Exception ex) {
 ## 6. 확인 명령
 
 ```bash
-./gradlew test                                   # 전체 (5개)
+./gradlew test                                   # 전체 (M0 시점에는 5개)
 ./gradlew test --tests '*HealthCheck*'           # 컨테이너를 띄우는 통합 테스트
 ./gradlew test --tests '*GlobalExceptionHandler*' # 웹 계층만 올리는 슬라이스 테스트
 docker compose up -d && ./gradlew bootRun        # 로컬 실행 후 curl localhost:8080/actuator/health

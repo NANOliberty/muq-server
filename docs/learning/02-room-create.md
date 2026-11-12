@@ -13,7 +13,7 @@
 5. `RoomService.saveRoomAndHost()` — `RoomRepository.saveAndFlush()` + `RoomMemberRepository.save()` (PostgreSQL, 한 트랜잭션)
 6. `GuestSessionService.issue()` — 256비트 토큰 생성
 7. `GuestSessionRedisRepository.save()` — `guest:{token}` HASH + TTL을 MULTI/EXEC로 저장 (Redis)
-8. `RoomService.toResponse()` — `CreateRoomResponse(room, session)` 조립
+8. `RoomService.toEntry()` — `RoomEntryResponse(room, session)` 조립
 
 검증에 실패하면 2번에 가지 않고 `GlobalExceptionHandler`가 400 Problem Details를 만든다.
 
@@ -56,7 +56,8 @@ public void save(String token, GuestSession session, Duration ttl) {
 ## 3. 따라치기 순서
 
 1. enum 4개(`RoomMode`, `PlayerProvider`, `RoomStatus`, `MemberRole`) → 컴파일
-2. `CreateRoomRequest`, `CreateRoomResponse` → 컴파일
+2. `CreateRoomRequest`, `RoomResponse`, `SessionResponse`, `RoomEntryResponse` → 컴파일
+   (처음 구현할 때는 `CreateRoomResponse` 하나에 중첩 record로 두었다가, M1-2에서 조회·입장과 함께 쓰려고 이 셋으로 나눴다. [03](03-room-join.md) 참고)
 3. `RoomService`(시그니처만) → `RoomController` → `RoomControllerTest` 통과 (서비스는 목)
 4. `V1__create_room.sql`, `V2__create_room_member.sql` → `Room`, `RoomMember` → `HealthCheckTest` 통과 (스키마 검증)
 5. `RoomRepository`, `RoomMemberRepository` → `RoomRepositoryTest` 통과 (같은 코드 두 번 저장 시 예외)

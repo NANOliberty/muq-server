@@ -186,6 +186,18 @@ class RoomControllerTest {
     }
 
     @Test
+    @DisplayName("다른 방의 토큰으로 오면 403 ROOM_ACCESS_DENIED다")
+    void protectedPathWithOtherRoomToken() throws Exception {
+        given(guestSessionRedisRepository.findByToken("other-room-token"))
+                .willReturn(Optional.of(new GuestSession(UUID.randomUUID(), "민수", "ZZZZZZ")));
+
+        mockMvc.perform(get("/api/v1/rooms/{code}/queue", "K7M2QX")
+                        .header("Authorization", "Bearer other-room-token"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ROOM_ACCESS_DENIED"));
+    }
+
+    @Test
     @DisplayName("보호된 경로에 Redis에 없는 토큰으로 오면 401이고 invalid_token을 알린다")
     void protectedPathWithUnknownToken() throws Exception {
         given(guestSessionRedisRepository.findByToken("expired-token")).willReturn(Optional.empty());

@@ -14,16 +14,22 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.security.web.authentication.AuthenticationEntryPointFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationFilter;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 /**
  * 어떤 요청을 누구에게 허용할지 정하는 보안 규칙의 단 한 곳.
  * 공개 경로(PublicEndpoints)는 토큰을 보지 않고 통과시키고, 그 밖의 요청은 세션 토큰으로 인증한다.
- * 401·403 은 다른 API 와 같은 Problem Details 로 내보낸다. 방 단위 인가 규칙은 다음 단계에서 더한다.
+ * 방에 속한 API(/api/v1/rooms/{code}/**)는 그 방의 세션만 부를 수 있다. 401·403 은 다른 API 와 같은 Problem Details 로 내보낸다.
  */
 @Configuration
 @RequiredArgsConstructor
 public class SecurityConfig {
+
+    // 방 하나에 속한 모든 API. 공개 경로(방 조회·입장)는 위 규칙에서 먼저 걸러진다.
+    private static final RequestMatcher ROOM_SCOPED =
+            PathPatternRequestMatcher.withDefaults().matcher("/api/v1/rooms/{code}/**");
 
     private final ProblemDetailSecurityErrorHandler securityErrorHandler;
 
@@ -58,6 +64,9 @@ public class SecurityConfig {
             AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
         auth
                 .requestMatchers(PublicEndpoints.MATCHER).permitAll()
+                // 왜 경로 규칙으로 거나: 컨트롤러마다 "같은 방인가"를 확인하면 하나만 빠뜨려도 다른 방을 조작할 수 있다.
+                //   {code} 는 RoomMemberAuthorizationManager 가 경로 변수로 꺼내 세션의 방과 비교한다.
+                .requestMatchers(ROOM_SCOPED).access(new RoomMemberAuthorizationManager())
                 // 왜 기본이 "인증 필요"인가: 새 API 를 만들고 규칙을 빠뜨려도 열리지 않고 닫힌 채로 남게 한다.
                 .anyRequest().authenticated();
     }

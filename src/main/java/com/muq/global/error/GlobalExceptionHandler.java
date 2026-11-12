@@ -21,7 +21,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
     public ProblemDetail handleBusiness(BusinessException ex) {
-        return toProblemDetail(ex.getErrorCode());
+        return ProblemDetails.of(ex.getErrorCode());
     }
 
     // 왜 override: 부모의 기본 응답에는 어느 필드가 왜 틀렸는지가 없다. 클라이언트가 입력란별로 표시할 수 있게 errors 를 붙인다.
@@ -33,7 +33,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .stream()
                 .map(error -> new InvalidField(error.getField(), error.getDefaultMessage()))
                 .toList();
-        ProblemDetail problem = toProblemDetail(ErrorCode.INVALID_INPUT);
+        ProblemDetail problem = ProblemDetails.of(ErrorCode.INVALID_INPUT);
         problem.setProperty("errors", errors);
         return handleExceptionInternal(ex, problem, headers, status, request);
     }
@@ -43,13 +43,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleUnexpected(Exception ex) {
         logger.error("처리되지 않은 예외", ex);
-        return toProblemDetail(ErrorCode.INTERNAL_ERROR);
-    }
-
-    private ProblemDetail toProblemDetail(ErrorCode errorCode) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(errorCode.getStatus(), errorCode.getMessage());
-        problem.setProperty("code", errorCode.name());
-        return problem;
+        return ProblemDetails.of(ErrorCode.INTERNAL_ERROR);
     }
 
     private record InvalidField(String field, String message) {

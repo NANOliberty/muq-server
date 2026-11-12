@@ -12,6 +12,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.muq.global.error.BusinessException;
 import com.muq.global.error.ErrorCode;
+import com.muq.global.security.ProblemDetailSecurityErrorHandler;
+import com.muq.global.security.SecurityConfig;
 import com.muq.room.domain.MemberRole;
 import com.muq.room.domain.PlayerProvider;
 import com.muq.room.domain.RoomMode;
@@ -28,6 +30,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -39,6 +42,9 @@ import org.springframework.test.web.servlet.ResultActions;
  * 서비스는 목으로 바꿔서 웹 계층만 올린다. 방이 실제로 저장되는지는 서비스·통합 테스트의 몫이다.
  */
 @WebMvcTest(RoomController.class)
+// 왜: @WebMvcTest 는 우리 SecurityConfig 를 읽지 않고 Boot 기본 보안(전부 잠금, CSRF 켜짐)으로 뜬다.
+//   방 API 는 "토큰 없이 부를 수 있다"는 것도 계약이므로, 실제 규칙을 올려 함께 검증한다.
+@Import({SecurityConfig.class, ProblemDetailSecurityErrorHandler.class})
 @ActiveProfiles("test")
 class RoomControllerTest {
 
@@ -145,6 +151,17 @@ class RoomControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
                 .andExpect(jsonPath("$.errors[0].field").value("nickname"));
+
+        verifyNoInteractions(roomService);
+    }
+
+    @Test
+    @DisplayName("방의 공개되지 않은 경로에 토큰 없이 오면 401 Problem Details다")
+    void protectedPathWithoutToken() throws Exception {
+        mockMvc.perform(get("/api/v1/rooms/{code}/queue", "K7M2QX"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().string("WWW-Authenticate", "Bearer"))
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
 
         verifyNoInteractions(roomService);
     }

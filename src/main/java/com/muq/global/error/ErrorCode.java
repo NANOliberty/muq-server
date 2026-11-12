@@ -16,6 +16,12 @@ public enum ErrorCode {
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "요청 값이 올바르지 않습니다."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다."),
 
+    // 왜 401: 누구인지 증명하지 못했다(토큰 없음·형식 오류·만료). 토큰을 다시 받으면 해결된다.
+    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "인증이 필요합니다. 방에 다시 입장해 주세요."),
+
+    // 왜 403: 누구인지는 알지만 이 방의 참여자가 아니다. 토큰을 다시 보내도 해결되지 않는다.
+    ROOM_ACCESS_DENIED(HttpStatus.FORBIDDEN, "이 방에 접근할 권한이 없습니다."),
+
     ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "방을 찾을 수 없습니다. 코드를 확인해 주세요."),
 
     // 왜 404 가 아니라 410: 방이 있었지만 끝났다는 뜻이다. 클라이언트가 "코드 오타"와 "종료된 방"을 다르게 안내할 수 있다.

@@ -11,6 +11,7 @@ import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
@@ -28,6 +29,8 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @WebMvcTest(GlobalExceptionHandlerTest.FailingController.class)
 @Import(GlobalExceptionHandlerTest.FailingController.class)
+// 왜 보안 필터를 끄나: 이 테스트는 "예외가 어떤 응답으로 바뀌는가"만 본다. 테스트 전용 경로(/test/**)는 보안 규칙의 대상이 아니다.
+@AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 class GlobalExceptionHandlerTest {
 

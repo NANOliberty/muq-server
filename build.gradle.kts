@@ -19,12 +19,14 @@ repositories {
 }
 
 // 의존성은 마일스톤별로 추가한다. 여기 있는 것은 M0(기반)에 필요한 것뿐이다.
-// security, websocket, webflux, resilience4j, oauth2-client, wiremock 은 처음 쓰는 마일스톤에서 넣는다.
+// websocket, webflux, resilience4j, oauth2-client, wiremock 은 처음 쓰는 기능에서 넣는다.
 dependencies {
     // --- 웹·검증·운영 ---
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    // 왜 지금: 세션 토큰 검증(M1-3)이 처음으로 인증을 요구한다. 넣는 순간 모든 경로가 잠기므로 SecurityConfig 와 함께 들어온다.
+    implementation("org.springframework.boot:spring-boot-starter-security")
     // 왜 버전 명시: Spring Boot BOM 밖이다. 2.9.x 가 Boot 3.5 대응 라인 (3.x 는 Boot 4 용).
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.9.1")
 
@@ -50,6 +52,8 @@ dependencies {
 
     // --- 테스트 ---
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    // 왜: MockMvc 요청에 인증 상태를 실어 보내는 도구(SecurityMockMvcRequestPostProcessors 등)를 제공한다.
+    testImplementation("org.springframework.security:spring-security-test")
     // 왜: @ServiceConnection 으로 컨테이너 접속 정보를 스프링 설정에 자동 주입한다.
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:junit-jupiter")
